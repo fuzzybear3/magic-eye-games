@@ -25,7 +25,8 @@
     }
   </style>
   <!-- trunk replaces this link with the compiled WASM + JS glue -->
-  <link data-trunk rel="rust" data-cargo-features="webgl2" />
+  <link data-trunk rel="rust" data-cargo-features="webgl2"
+        data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int" />
 </head>
 <body>
   <div id="loading">loading...</div>
