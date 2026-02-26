@@ -1,0 +1,8 @@
+[build]
+target = "index.html"
+# Hashes in filenames for cache busting
+filehash = true
+
+[serve]
+port = 8080
+open = false

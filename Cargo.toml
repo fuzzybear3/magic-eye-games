@@ -3,9 +3,17 @@ name = "magic-eye-games"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Enable on web builds: cargo build --target wasm32-unknown-unknown --features webgl2
+# (trunk sets this automatically via index.html)
+webgl2 = ["bevy/webgl2"]
+
 [dependencies]
 bevy = "0.18"
 rand = { version = "0.8", features = ["small_rng"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
 
 # Speed up iteration builds
 [profile.dev]
@@ -13,3 +21,11 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+# Shrink WASM binary for release web builds
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
