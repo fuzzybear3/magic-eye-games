@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Magic Eye Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    /* Loading message shown before WASM starts */
+    #loading {
+      position: absolute;
+      color: #555;
+      font-family: monospace;
+      font-size: 14px;
+      letter-spacing: 0.1em;
+    }
+  </style>
+  <!-- trunk replaces this link with the compiled WASM + JS glue -->
+  
+<script type="module">
+import init, * as bindings from '/magic-eye-games-60ff0fad27dc58ff.js';
+const wasm = await init({ module_or_path: '/magic-eye-games-60ff0fad27dc58ff_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+<link rel="modulepreload" href="/magic-eye-games-60ff0fad27dc58ff.js" crossorigin="anonymous" integrity="sha384-EDW4rhfDxz1fvDyJxEFaQcAdJ76ucKOge6iAiF0otYn4GJ96BG1c9uxneiWylqA2"><link rel="preload" href="/magic-eye-games-60ff0fad27dc58ff_bg.wasm" crossorigin="anonymous" integrity="sha384-GvvQBOMotaSa3LGUNVPXAfOBP4mLLQ1OVWCV3eYnbI7pUwIoCSa854KwsuT49kpd" as="fetch" type="application/wasm"></head>
+<body>
+  <div id="loading">loading...</div>
+  <script>
+    // Hide loading text once the canvas appears
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('canvas')) {
+        document.getElementById('loading').style.display = 'none';
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  </script>
+</body>
+</html>
