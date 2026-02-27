@@ -13,15 +13,25 @@ use rand::{rngs::SmallRng, SeedableRng};
 
 use crate::stereogram;
 
-// ── Public component ─────────────────────────────────────────────────────────
+// ── Public components ─────────────────────────────────────────────────────────
 
-/// Add to any entity to make it visible in the stereogram.
+/// Rectangular shape visible in the stereogram.
 ///
 /// - `size`:  bounding rectangle in world pixels
 /// - `depth`: 0.0 = farthest background, 1.0 = closest to viewer
 #[derive(Component)]
 pub struct DepthSprite {
     pub size: Vec2,
+    pub depth: f32,
+}
+
+/// Circular shape visible in the stereogram.
+///
+/// - `radius`: radius in world pixels
+/// - `depth`:  0.0 = farthest background, 1.0 = closest to viewer
+#[derive(Component)]
+pub struct DepthCircle {
+    pub radius: f32,
     pub depth: f32,
 }
 
@@ -104,37 +114,64 @@ fn setup_output_sprite(
     ));
 }
 
-/// Rasterize all `DepthSprite` entities into the CPU depth buffer.
-/// Lower-depth entities are painted first so higher-depth ones overwrite them.
+/// Rasterize all `DepthSprite` and `DepthCircle` entities into the CPU depth buffer.
+/// Entities are sorted by depth ascending so higher-depth ones overwrite lower ones.
 pub fn rasterize_depth_buffer(
     mut buf: ResMut<DepthBuffer>,
-    query: Query<(&Transform, &DepthSprite)>,
+    sprites: Query<(&Transform, &DepthSprite)>,
+    circles: Query<(&Transform, &DepthCircle)>,
 ) {
     let (w, h) = (buf.width, buf.height);
     let (wf, hf) = (w as f32, h as f32);
 
     buf.data.fill(0.0);
 
-    // Painter's algorithm: sort by depth ascending so deeper (closer) sprites win.
-    let mut entities: Vec<_> = query.iter().collect();
-    entities.sort_by(|a, b| {
-        a.1.depth.partial_cmp(&b.1.depth).unwrap_or(std::cmp::Ordering::Equal)
-    });
+    // Collect everything into a unified draw list and sort by depth.
+    enum Shape { Rect(Vec2), Circle(f32) }
+    let mut draws: Vec<(Vec2, Shape, f32)> = Vec::new();
 
-    for (transform, sprite) in entities {
-        let pos  = transform.translation.truncate();
-        let half = sprite.size * 0.5;
+    for (t, s) in &sprites {
+        draws.push((t.translation.truncate(), Shape::Rect(s.size), s.depth));
+    }
+    for (t, c) in &circles {
+        draws.push((t.translation.truncate(), Shape::Circle(c.radius), c.depth));
+    }
+    draws.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
 
+    for (pos, shape, depth) in draws {
         // Bevy world: origin at centre, Y-up
         // Pixel space: origin at top-left, Y-down
-        let px0 = ((pos.x - half.x + wf * 0.5) as i32).clamp(0, w as i32) as usize;
-        let px1 = ((pos.x + half.x + wf * 0.5) as i32).clamp(0, w as i32) as usize;
-        let py0 = ((-pos.y - half.y + hf * 0.5) as i32).clamp(0, h as i32) as usize;
-        let py1 = ((-pos.y + half.y + hf * 0.5) as i32).clamp(0, h as i32) as usize;
-
-        for py in py0..py1 {
-            for px in px0..px1 {
-                buf.data[py * w + px] = sprite.depth;
+        match shape {
+            Shape::Rect(size) => {
+                let half = size * 0.5;
+                let px0 = ((pos.x - half.x + wf * 0.5) as i32).clamp(0, w as i32) as usize;
+                let px1 = ((pos.x + half.x + wf * 0.5) as i32).clamp(0, w as i32) as usize;
+                let py0 = ((-pos.y - half.y + hf * 0.5) as i32).clamp(0, h as i32) as usize;
+                let py1 = ((-pos.y + half.y + hf * 0.5) as i32).clamp(0, h as i32) as usize;
+                for py in py0..py1 {
+                    for px in px0..px1 {
+                        buf.data[py * w + px] = depth;
+                    }
+                }
+            }
+            Shape::Circle(radius) => {
+                let cx = pos.x + wf * 0.5;
+                let cy = -pos.y + hf * 0.5;
+                let r = radius;
+                let px0 = ((cx - r) as i32).clamp(0, w as i32) as usize;
+                let px1 = ((cx + r) as i32).clamp(0, w as i32) as usize;
+                let py0 = ((cy - r) as i32).clamp(0, h as i32) as usize;
+                let py1 = ((cy + r) as i32).clamp(0, h as i32) as usize;
+                let r2 = r * r;
+                for py in py0..py1 {
+                    for px in px0..px1 {
+                        let dx = px as f32 - cx;
+                        let dy = py as f32 - cy;
+                        if dx * dx + dy * dy <= r2 {
+                            buf.data[py * w + px] = depth;
+                        }
+                    }
+                }
             }
         }
     }

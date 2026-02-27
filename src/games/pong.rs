@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::plugin::DepthSprite;
+use crate::plugin::{DepthCircle, DepthSprite};
 use crate::{AppState, HEIGHT, WIDTH};
 
 pub struct PongPlugin;
@@ -82,8 +82,8 @@ fn spawn_pong(mut commands: Commands) {
         PongEntity,
         Ball,
         Velocity(Vec2::new(BALL_SPEED * 0.6, BALL_SPEED)),
-        DepthSprite {
-            size: Vec2::new(BALL_SIZE, BALL_SIZE),
+        DepthCircle {
+            radius: BALL_SIZE / 2.0,
             depth: 1.0,
         },
         Transform::default(),
