@@ -10,7 +10,7 @@ use plugin::MagicEyePlugin;
 
 // ── Window ────────────────────────────────────────────────────────────────────
 
-pub const WIDTH: u32 = 1280;
+pub const WIDTH: u32 = 400;
 pub const HEIGHT: u32 = 800;
 
 // ── App state ─────────────────────────────────────────────────────────────────

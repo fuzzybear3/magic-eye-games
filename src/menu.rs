@@ -15,6 +15,10 @@ impl Plugin for MenuPlugin {
 #[derive(Component)]
 struct MenuRoot;
 
+/// Marks a button with the state it transitions to when pressed.
+#[derive(Component)]
+struct GameChoice(AppState);
+
 fn spawn_menu(mut commands: Commands) {
     commands
         .spawn((
@@ -36,30 +40,46 @@ fn spawn_menu(mut commands: Commands) {
                 TextFont { font_size: 72.0, ..default() },
                 TextColor(Color::WHITE),
             ));
+
+            spawn_button(parent, "Tetris", AppState::Tetris);
+            spawn_button(parent, "Two-Player Pong", AppState::Pong);
+
             parent.spawn((
-                Text::new("[ 1 ]  Tetris"),
-                TextFont { font_size: 40.0, ..default() },
-                TextColor(Color::srgb(0.8, 0.9, 1.0)),
-            ));
-            parent.spawn((
-                Text::new("[ 2 ]  Two-Player Pong"),
-                TextFont { font_size: 40.0, ..default() },
-                TextColor(Color::srgb(0.8, 0.9, 1.0)),
-            ));
-            parent.spawn((
-                Text::new("ESC to return here"),
+                Text::new("tap to select"),
                 TextFont { font_size: 24.0, ..default() },
                 TextColor(Color::srgb(0.5, 0.5, 0.5)),
             ));
         });
 }
 
-fn menu_input(keys: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<AppState>>) {
-    if keys.just_pressed(KeyCode::Digit1) {
-        next.set(AppState::Tetris);
-    }
-    if keys.just_pressed(KeyCode::Digit2) {
-        next.set(AppState::Pong);
+fn spawn_button(parent: &mut ChildSpawnerCommands, label: &str, choice: AppState) {
+    parent
+        .spawn((
+            Button,
+            GameChoice(choice),
+            Node {
+                padding: UiRect::axes(Val::Px(32.0), Val::Px(16.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
+        ))
+        .with_children(|btn| {
+            btn.spawn((
+                Text::new(label),
+                TextFont { font_size: 40.0, ..default() },
+                TextColor(Color::srgb(0.8, 0.9, 1.0)),
+            ));
+        });
+}
+
+fn menu_input(
+    interaction_q: Query<(&Interaction, &GameChoice), Changed<Interaction>>,
+    mut next: ResMut<NextState<AppState>>,
+) {
+    for (interaction, choice) in &interaction_q {
+        if *interaction == Interaction::Pressed {
+            next.set(choice.0.clone());
+        }
     }
 }
 

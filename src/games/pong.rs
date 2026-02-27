@@ -18,12 +18,12 @@ impl Plugin for PongPlugin {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PADDLE_W: f32 = 16.0;
-const PADDLE_H: f32 = 100.0;
-const BALL_SIZE: f32 = 16.0;
-const PADDLE_SPEED: f32 = 300.0;
+const PADDLE_W: f32 = 160.0; // wide horizontal bar
+const PADDLE_H: f32 = 32.0;
+const BALL_SIZE: f32 = 40.0;
+const PADDLE_SPEED: f32 = 400.0;
 const BALL_SPEED: f32 = 300.0;
-const PADDLE_X: f32 = 580.0;
+const PADDLE_Y: f32 = 350.0; // distance from centre to each paddle
 
 // ── Components ────────────────────────────────────────────────────────────────
 
@@ -31,10 +31,10 @@ const PADDLE_X: f32 = 580.0;
 struct PongEntity;
 
 #[derive(Component)]
-struct LeftPaddle;
+struct TopPaddle;
 
 #[derive(Component)]
-struct RightPaddle;
+struct BottomPaddle;
 
 #[derive(Component)]
 struct Ball;
@@ -55,33 +55,33 @@ fn spawn_pong(mut commands: Commands) {
         Transform::default(),
     ));
 
-    // Left paddle
+    // Top paddle
     commands.spawn((
         PongEntity,
-        LeftPaddle,
+        TopPaddle,
         DepthSprite {
             size: Vec2::new(PADDLE_W, PADDLE_H),
             depth: 0.8,
         },
-        Transform::from_xyz(-PADDLE_X, 0.0, 0.0),
+        Transform::from_xyz(0.0, PADDLE_Y, 0.0),
     ));
 
-    // Right paddle
+    // Bottom paddle
     commands.spawn((
         PongEntity,
-        RightPaddle,
+        BottomPaddle,
         DepthSprite {
             size: Vec2::new(PADDLE_W, PADDLE_H),
             depth: 0.8,
         },
-        Transform::from_xyz(PADDLE_X, 0.0, 0.0),
+        Transform::from_xyz(0.0, -PADDLE_Y, 0.0),
     ));
 
     // Ball
     commands.spawn((
         PongEntity,
         Ball,
-        Velocity(Vec2::new(BALL_SPEED, BALL_SPEED * 0.6)),
+        Velocity(Vec2::new(BALL_SPEED * 0.6, BALL_SPEED)),
         DepthSprite {
             size: Vec2::new(BALL_SIZE, BALL_SIZE),
             depth: 1.0,
@@ -91,29 +91,46 @@ fn spawn_pong(mut commands: Commands) {
 }
 
 fn move_paddles(
+    touches: Res<Touches>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    mut left: Query<&mut Transform, (With<LeftPaddle>, Without<RightPaddle>)>,
-    mut right: Query<&mut Transform, (With<RightPaddle>, Without<LeftPaddle>)>,
+    mut top: Query<&mut Transform, (With<TopPaddle>, Without<BottomPaddle>)>,
+    mut bottom: Query<&mut Transform, (With<BottomPaddle>, Without<TopPaddle>)>,
 ) {
     let dt = time.delta_secs();
-    let max_y = HEIGHT as f32 / 2.0 - PADDLE_H / 2.0;
+    let max_x = WIDTH as f32 / 2.0 - PADDLE_W / 2.0;
 
-    if let Ok(mut t) = left.single_mut() {
-        if keys.pressed(KeyCode::KeyW) {
-            t.translation.y = (t.translation.y + PADDLE_SPEED * dt).min(max_y);
+    // Keyboard fallback (A/D = bottom, ←/→ = top)
+    if let Ok(mut t) = bottom.single_mut() {
+        if keys.pressed(KeyCode::KeyA) {
+            t.translation.x = (t.translation.x - PADDLE_SPEED * dt).max(-max_x);
         }
-        if keys.pressed(KeyCode::KeyS) {
-            t.translation.y = (t.translation.y - PADDLE_SPEED * dt).max(-max_y);
+        if keys.pressed(KeyCode::KeyD) {
+            t.translation.x = (t.translation.x + PADDLE_SPEED * dt).min(max_x);
+        }
+    }
+    if let Ok(mut t) = top.single_mut() {
+        if keys.pressed(KeyCode::ArrowLeft) {
+            t.translation.x = (t.translation.x - PADDLE_SPEED * dt).max(-max_x);
+        }
+        if keys.pressed(KeyCode::ArrowRight) {
+            t.translation.x = (t.translation.x + PADDLE_SPEED * dt).min(max_x);
         }
     }
 
-    if let Ok(mut t) = right.single_mut() {
-        if keys.pressed(KeyCode::ArrowUp) {
-            t.translation.y = (t.translation.y + PADDLE_SPEED * dt).min(max_y);
-        }
-        if keys.pressed(KeyCode::ArrowDown) {
-            t.translation.y = (t.translation.y - PADDLE_SPEED * dt).max(-max_y);
+    // Touch: finger X sets paddle X directly.
+    // Top half of screen → top paddle; bottom half → bottom paddle.
+    let half_w = WIDTH as f32 / 2.0;
+    let half_h = HEIGHT as f32 / 2.0;
+    for touch in touches.iter() {
+        let pos = touch.position();
+        let world_x = (pos.x - half_w).clamp(-max_x, max_x);
+        if pos.y < half_h {
+            if let Ok(mut t) = top.single_mut() {
+                t.translation.x = world_x;
+            }
+        } else if let Ok(mut t) = bottom.single_mut() {
+            t.translation.x = world_x;
         }
     }
 }
@@ -121,8 +138,8 @@ fn move_paddles(
 fn update_ball(
     time: Res<Time>,
     mut ball_q: Query<(&mut Transform, &mut Velocity), With<Ball>>,
-    left_q: Query<&Transform, (With<LeftPaddle>, Without<Ball>)>,
-    right_q: Query<&Transform, (With<RightPaddle>, Without<Ball>)>,
+    top_q: Query<&Transform, (With<TopPaddle>, Without<Ball>)>,
+    bottom_q: Query<&Transform, (With<BottomPaddle>, Without<Ball>)>,
 ) {
     let dt = time.delta_secs();
     let half_w = WIDTH as f32 / 2.0;
@@ -139,50 +156,54 @@ fn update_ball(
     bt.translation.x += vel.0.x * dt;
     bt.translation.y += vel.0.y * dt;
 
-    // Top / bottom wall bounce
-    if bt.translation.y + ball_half > half_h {
-        bt.translation.y = half_h - ball_half;
-        vel.0.y = -vel.0.y.abs();
-    } else if bt.translation.y - ball_half < -half_h {
-        bt.translation.y = -half_h + ball_half;
-        vel.0.y = vel.0.y.abs();
+    // Left / right wall bounce
+    if bt.translation.x + ball_half > half_w {
+        bt.translation.x = half_w - ball_half;
+        vel.0.x = -vel.0.x.abs();
+    } else if bt.translation.x - ball_half < -half_w {
+        bt.translation.x = -half_w + ball_half;
+        vel.0.x = vel.0.x.abs();
     }
 
-    // Left paddle bounce
-    if let Ok(lt) = left_q.single() {
-        let lx = lt.translation.x;
-        let ly = lt.translation.y;
-        if vel.0.x < 0.0
-            && bt.translation.x - ball_half < lx + paddle_half_w
-            && bt.translation.x + ball_half > lx - paddle_half_w
-            && bt.translation.y < ly + paddle_half_h
-            && bt.translation.y > ly - paddle_half_h
+    // Top paddle bounce
+    if let Ok(tt) = top_q.single() {
+        let tx = tt.translation.x;
+        let ty = tt.translation.y;
+        if vel.0.y > 0.0
+            && bt.translation.y + ball_half > ty - paddle_half_h
+            && bt.translation.y - ball_half < ty + paddle_half_h
+            && bt.translation.x < tx + paddle_half_w
+            && bt.translation.x > tx - paddle_half_w
         {
-            bt.translation.x = lx + paddle_half_w + ball_half;
-            vel.0.x = vel.0.x.abs();
+            bt.translation.y = ty - paddle_half_h - ball_half;
+            vel.0.y = -vel.0.y.abs();
         }
     }
 
-    // Right paddle bounce
-    if let Ok(rt) = right_q.single() {
-        let rx = rt.translation.x;
-        let ry = rt.translation.y;
-        if vel.0.x > 0.0
-            && bt.translation.x + ball_half > rx - paddle_half_w
-            && bt.translation.x - ball_half < rx + paddle_half_w
-            && bt.translation.y < ry + paddle_half_h
-            && bt.translation.y > ry - paddle_half_h
+    // Bottom paddle bounce
+    if let Ok(bt2) = bottom_q.single() {
+        let bx = bt2.translation.x;
+        let by = bt2.translation.y;
+        if vel.0.y < 0.0
+            && bt.translation.y - ball_half < by + paddle_half_h
+            && bt.translation.y + ball_half > by - paddle_half_h
+            && bt.translation.x < bx + paddle_half_w
+            && bt.translation.x > bx - paddle_half_w
         {
-            bt.translation.x = rx - paddle_half_w - ball_half;
-            vel.0.x = -vel.0.x.abs();
+            bt.translation.y = by + paddle_half_h + ball_half;
+            vel.0.y = vel.0.y.abs();
         }
     }
 
-    // Score: ball exits left or right — reset to centre
-    if bt.translation.x.abs() > half_w + ball_half {
-        let dir = if bt.translation.x > 0.0 { -1.0_f32 } else { 1.0_f32 };
+    // Score: ball exits top or bottom — reset to centre
+    if bt.translation.y.abs() > half_h + ball_half {
+        let dir = if bt.translation.y > 0.0 {
+            -1.0_f32
+        } else {
+            1.0_f32
+        };
         bt.translation = Vec3::ZERO;
-        vel.0 = Vec2::new(BALL_SPEED * dir, BALL_SPEED * 0.6);
+        vel.0 = Vec2::new(BALL_SPEED * 0.6, BALL_SPEED * dir);
     }
 }
 
