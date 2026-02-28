@@ -20,10 +20,11 @@ impl Plugin for PongPlugin {
 
 const PADDLE_W: f32 = 160.0; // wide horizontal bar
 const PADDLE_H: f32 = 32.0;
-const BALL_SIZE: f32 = 40.0;
+const BALL_SIZE: f32 = 45.0;
 const PADDLE_SPEED: f32 = 400.0;
 const BALL_SPEED: f32 = 300.0;
-const PADDLE_Y: f32 = 350.0; // distance from centre to each paddle
+const PADDLE_MARGIN: f32 = 90.0; // gap between paddle and top/bottom wall
+const PADDLE_Y: f32 = HEIGHT as f32 / 2.0 - PADDLE_MARGIN;
 
 // ── Components ────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ fn spawn_pong(mut commands: Commands) {
         TopPaddle,
         DepthSprite {
             size: Vec2::new(PADDLE_W, PADDLE_H),
-            depth: 0.8,
+            depth: 1.0,
         },
         Transform::from_xyz(0.0, PADDLE_Y, 0.0),
     ));
@@ -72,7 +73,7 @@ fn spawn_pong(mut commands: Commands) {
         BottomPaddle,
         DepthSprite {
             size: Vec2::new(PADDLE_W, PADDLE_H),
-            depth: 0.8,
+            depth: 1.0,
         },
         Transform::from_xyz(0.0, -PADDLE_Y, 0.0),
     ));
