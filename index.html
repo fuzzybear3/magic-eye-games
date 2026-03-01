@@ -17,7 +17,13 @@
       overflow: hidden;
       touch-action: none;
     }
-    canvas { display: block; }
+    canvas {
+      /* Fill the viewport while keeping the canvas's own aspect ratio.
+         width drives the scale; height follows proportionally via auto. */
+      width: min(100vw, 50vh);
+      height: auto;
+      display: block;
+    }
     #loading {
       position: absolute;
       color: #555;
@@ -33,19 +39,9 @@
 <body>
   <div id="loading">loading...</div>
   <script>
-    // Once the canvas appears, scale it to fill the viewport while preserving
-    // its exact pixel aspect ratio (read from the canvas's own width/height
-    // attributes set by Bevy). This avoids hardcoding any assumed ratio.
     const observer = new MutationObserver(() => {
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
+      if (document.querySelector('canvas')) {
         document.getElementById('loading').style.display = 'none';
-        const scale = Math.min(
-          window.innerWidth  / canvas.width,
-          window.innerHeight / canvas.height
-        );
-        canvas.style.width  = Math.round(canvas.width  * scale) + 'px';
-        canvas.style.height = Math.round(canvas.height * scale) + 'px';
         observer.disconnect();
       }
     });
