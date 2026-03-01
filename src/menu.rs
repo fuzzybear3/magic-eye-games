@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::plugin::DepthSprite;
-use crate::{AppState, HEIGHT, WIDTH};
+use crate::plugin::{DepthSprite, ScreenSize};
+use crate::AppState;
 
 pub struct MenuPlugin;
 
@@ -29,9 +29,9 @@ struct GameChoice(AppState);
 
 // ── Scene (stereogram depth sprites) ─────────────────────────────────────────
 
-fn spawn_menu_scene(mut commands: Commands) {
-    let w = WIDTH as f32;
-    let h = HEIGHT as f32;
+fn spawn_menu_scene(mut commands: Commands, screen: Res<ScreenSize>) {
+    let w = screen.width as f32;
+    let h = screen.height as f32;
 
     // Far background
     commands.spawn((

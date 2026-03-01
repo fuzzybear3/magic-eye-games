@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::plugin::{DepthCircle, DepthSprite};
-use crate::{AppState, HEIGHT, WIDTH};
+use crate::plugin::{DepthCircle, DepthSprite, ScreenSize};
+use crate::AppState;
 
 pub struct PongPlugin;
 
@@ -18,13 +18,12 @@ impl Plugin for PongPlugin {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PADDLE_W: f32 = 160.0; // wide horizontal bar
+const PADDLE_W: f32 = 160.0;
 const PADDLE_H: f32 = 32.0;
 const BALL_SIZE: f32 = 45.0;
 const PADDLE_SPEED: f32 = 400.0;
 const BALL_SPEED: f32 = 300.0;
-const PADDLE_MARGIN: f32 = 90.0; // gap between paddle and top/bottom wall
-const PADDLE_Y: f32 = HEIGHT as f32 / 2.0 - PADDLE_MARGIN;
+const PADDLE_MARGIN: f32 = 90.0; // gap between paddle centre and top/bottom wall
 
 // ── Components ────────────────────────────────────────────────────────────────
 
@@ -45,14 +44,15 @@ struct Velocity(Vec2);
 
 // ── Systems ───────────────────────────────────────────────────────────────────
 
-fn spawn_pong(mut commands: Commands) {
+fn spawn_pong(mut commands: Commands, screen: Res<ScreenSize>) {
+    let w = screen.width as f32;
+    let h = screen.height as f32;
+    let paddle_y = h / 2.0 - PADDLE_MARGIN;
+
     // Scene background
     commands.spawn((
         PongEntity,
-        DepthSprite {
-            size: Vec2::new(WIDTH as f32, HEIGHT as f32),
-            depth: 0.0,
-        },
+        DepthSprite { size: Vec2::new(w, h), depth: 0.0 },
         Transform::default(),
     ));
 
@@ -60,22 +60,16 @@ fn spawn_pong(mut commands: Commands) {
     commands.spawn((
         PongEntity,
         TopPaddle,
-        DepthSprite {
-            size: Vec2::new(PADDLE_W, PADDLE_H),
-            depth: 1.0,
-        },
-        Transform::from_xyz(0.0, PADDLE_Y, 0.0),
+        DepthSprite { size: Vec2::new(PADDLE_W, PADDLE_H), depth: 1.0 },
+        Transform::from_xyz(0.0, paddle_y, 0.0),
     ));
 
     // Bottom paddle
     commands.spawn((
         PongEntity,
         BottomPaddle,
-        DepthSprite {
-            size: Vec2::new(PADDLE_W, PADDLE_H),
-            depth: 1.0,
-        },
-        Transform::from_xyz(0.0, -PADDLE_Y, 0.0),
+        DepthSprite { size: Vec2::new(PADDLE_W, PADDLE_H), depth: 1.0 },
+        Transform::from_xyz(0.0, -paddle_y, 0.0),
     ));
 
     // Ball
@@ -83,10 +77,7 @@ fn spawn_pong(mut commands: Commands) {
         PongEntity,
         Ball,
         Velocity(Vec2::new(BALL_SPEED * 0.6, BALL_SPEED)),
-        DepthCircle {
-            radius: BALL_SIZE / 2.0,
-            depth: 1.0,
-        },
+        DepthCircle { radius: BALL_SIZE / 2.0, depth: 1.0 },
         Transform::default(),
     ));
 }
@@ -95,11 +86,14 @@ fn move_paddles(
     touches: Res<Touches>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    screen: Res<ScreenSize>,
     mut top: Query<&mut Transform, (With<TopPaddle>, Without<BottomPaddle>)>,
     mut bottom: Query<&mut Transform, (With<BottomPaddle>, Without<TopPaddle>)>,
 ) {
     let dt = time.delta_secs();
-    let max_x = WIDTH as f32 / 2.0 - PADDLE_W / 2.0;
+    let half_w = screen.width as f32 / 2.0;
+    let half_h = screen.height as f32 / 2.0;
+    let max_x = half_w - PADDLE_W / 2.0;
 
     // Keyboard fallback (A/D = bottom, ←/→ = top)
     if let Ok(mut t) = bottom.single_mut() {
@@ -119,10 +113,7 @@ fn move_paddles(
         }
     }
 
-    // Touch: finger X sets paddle X directly.
-    // Top half of screen → top paddle; bottom half → bottom paddle.
-    let half_w = WIDTH as f32 / 2.0;
-    let half_h = HEIGHT as f32 / 2.0;
+    // Touch: finger X → paddle X, top/bottom half of screen → respective paddle
     for touch in touches.iter() {
         let pos = touch.position();
         let world_x = (pos.x - half_w).clamp(-max_x, max_x);
@@ -138,13 +129,14 @@ fn move_paddles(
 
 fn update_ball(
     time: Res<Time>,
+    screen: Res<ScreenSize>,
     mut ball_q: Query<(&mut Transform, &mut Velocity), With<Ball>>,
     top_q: Query<&Transform, (With<TopPaddle>, Without<Ball>)>,
     bottom_q: Query<&Transform, (With<BottomPaddle>, Without<Ball>)>,
 ) {
     let dt = time.delta_secs();
-    let half_w = WIDTH as f32 / 2.0;
-    let half_h = HEIGHT as f32 / 2.0;
+    let half_w = screen.width as f32 / 2.0;
+    let half_h = screen.height as f32 / 2.0;
     let ball_half = BALL_SIZE / 2.0;
     let paddle_half_w = PADDLE_W / 2.0;
     let paddle_half_h = PADDLE_H / 2.0;
@@ -153,7 +145,6 @@ fn update_ball(
         return;
     };
 
-    // Move
     bt.translation.x += vel.0.x * dt;
     bt.translation.y += vel.0.y * dt;
 
@@ -196,13 +187,9 @@ fn update_ball(
         }
     }
 
-    // Score: ball exits top or bottom — reset to centre
+    // Score: reset to centre
     if bt.translation.y.abs() > half_h + ball_half {
-        let dir = if bt.translation.y > 0.0 {
-            -1.0_f32
-        } else {
-            1.0_f32
-        };
+        let dir = if bt.translation.y > 0.0 { -1.0_f32 } else { 1.0_f32 };
         bt.translation = Vec3::ZERO;
         vel.0 = Vec2::new(BALL_SPEED * 0.6, BALL_SPEED * dir);
     }

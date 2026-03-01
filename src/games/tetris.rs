@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::plugin::DepthSprite;
-use crate::{AppState, HEIGHT, WIDTH};
+use crate::plugin::{DepthSprite, ScreenSize};
+use crate::AppState;
 
 pub struct TetrisPlugin;
 
@@ -47,12 +47,12 @@ fn cell_to_world(col: i32, row: i32) -> Vec2 {
 
 // ── Systems ───────────────────────────────────────────────────────────────────
 
-fn spawn_tetris(mut commands: Commands) {
+fn spawn_tetris(mut commands: Commands, screen: Res<ScreenSize>) {
     // Scene background
     commands.spawn((
         TetrisEntity,
         DepthSprite {
-            size: Vec2::new(WIDTH as f32, HEIGHT as f32),
+            size: Vec2::new(screen.width as f32, screen.height as f32),
             depth: 0.0,
         },
         Transform::default(),

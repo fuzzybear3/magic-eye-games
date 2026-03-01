@@ -51,9 +51,9 @@ struct StereogramOutput(Handle<Image>);
 struct StereogramRng(SmallRng);
 
 #[derive(Resource, Clone, Copy)]
-struct ScreenSize {
-    width: u32,
-    height: u32,
+pub struct ScreenSize {
+    pub width: u32,
+    pub height: u32,
 }
 
 // ── Plugin ────────────────────────────────────────────────────────────────────

@@ -8,10 +8,9 @@ use games::{pong::PongPlugin, tetris::TetrisPlugin};
 use menu::MenuPlugin;
 use plugin::MagicEyePlugin;
 
-// ── Window ────────────────────────────────────────────────────────────────────
-
-pub const WIDTH: u32 = 400;
-pub const HEIGHT: u32 = 800;
+// Fallback resolution used on native (laptop) builds.
+const DEFAULT_WIDTH: u32 = 400;
+const DEFAULT_HEIGHT: u32 = 800;
 
 // ── App state ─────────────────────────────────────────────────────────────────
 
@@ -23,23 +22,41 @@ pub enum AppState {
     Pong,
 }
 
+// ── Screen measurement ────────────────────────────────────────────────────────
+
+/// On WASM read the browser viewport; on native return the hardcoded defaults.
+fn measure_screen() -> (u32, u32) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(win) = web_sys::window() {
+            let w = win.inner_width().ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(DEFAULT_WIDTH as f64) as u32;
+            let h = win.inner_height().ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(DEFAULT_HEIGHT as f64) as u32;
+            return (w, h);
+        }
+    }
+    (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fn main() {
+    let (width, height) = measure_screen();
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Magic Eye Games".into(),
-                resolution: (WIDTH, HEIGHT).into(),
+                resolution: (width, height).into(),
                 resizable: false,
                 ..default()
             }),
             ..default()
         }))
-        .add_plugins(MagicEyePlugin {
-            width: WIDTH,
-            height: HEIGHT,
-        })
+        .add_plugins(MagicEyePlugin { width, height })
         .init_state::<AppState>()
         .add_plugins((MenuPlugin, TetrisPlugin, PongPlugin))
         .add_systems(Startup, setup)

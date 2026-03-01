@@ -3062,6 +3062,7 @@ dependencies = [
  "bevy",
  "getrandom 0.2.17",
  "rand 0.8.5",
+ "web-sys",
 ]
 
 [[package]]
