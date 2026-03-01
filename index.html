@@ -15,16 +15,9 @@
       justify-content: center;
       align-items: center;
       overflow: hidden;
-      /* Prevent scroll / elastic bounce on iOS */
       touch-action: none;
     }
-    canvas {
-      /* Scale the fixed 400x800 canvas to fill the viewport,
-         preserving the 1:2 aspect ratio. */
-      width: min(100vw, 50vh);
-      height: min(200vw, 100vh);
-      display: block;
-    }
+    canvas { display: block; }
     #loading {
       position: absolute;
       color: #555;
@@ -40,10 +33,19 @@
 <body>
   <div id="loading">loading...</div>
   <script>
-    // Hide loading text once the canvas appears
+    // Once the canvas appears, scale it to fill the viewport while preserving
+    // its exact pixel aspect ratio (read from the canvas's own width/height
+    // attributes set by Bevy). This avoids hardcoding any assumed ratio.
     const observer = new MutationObserver(() => {
-      if (document.querySelector('canvas')) {
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
         document.getElementById('loading').style.display = 'none';
+        const scale = Math.min(
+          window.innerWidth  / canvas.width,
+          window.innerHeight / canvas.height
+        );
+        canvas.style.width  = Math.round(canvas.width  * scale) + 'px';
+        canvas.style.height = Math.round(canvas.height * scale) + 'px';
         observer.disconnect();
       }
     });
