@@ -4,9 +4,6 @@
   <meta charset="utf-8" />
   <!-- user-scalable=no prevents pinch-zoom interfering with touch controls -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <!-- Fullscreen when added to iOS / Android home screen -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
   <title>Magic Eye Games</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -51,14 +48,6 @@
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-
-    // On first touch, request the browser fullscreen API (Android Chrome).
-    // iOS ignores this but respects apple-mobile-web-app-capable above.
-    document.addEventListener('touchstart', function requestFS() {
-      const el = document.documentElement;
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    }, { once: true });
   </script>
 </body>
 </html>
