@@ -35,6 +35,19 @@ pub struct DepthCircle {
     pub depth: f32,
 }
 
+// ── Public settings ───────────────────────────────────────────────────────────
+
+#[derive(Resource)]
+pub struct DebugSettings {
+    pub magic_eye_enabled: bool,
+}
+
+impl Default for DebugSettings {
+    fn default() -> Self {
+        Self { magic_eye_enabled: true }
+    }
+}
+
 // ── Internal resources ────────────────────────────────────────────────────────
 
 #[derive(Resource)]
@@ -73,6 +86,7 @@ impl Plugin for MagicEyePlugin {
             })
             .insert_resource(ScreenSize { width: w, height: h })
             .insert_resource(StereogramRng(SmallRng::seed_from_u64(12345)))
+            .init_resource::<DebugSettings>()
             .add_systems(Startup, setup_output_sprite)
             .add_systems(
                 PostUpdate,
@@ -183,8 +197,16 @@ fn generate_stereogram(
     output: Res<StereogramOutput>,
     mut images: ResMut<Assets<Image>>,
     mut rng: ResMut<StereogramRng>,
+    debug: Res<DebugSettings>,
 ) {
     let Some(image) = images.get_mut(&output.0) else { return };
 
-    image.data = Some(stereogram::generate(&buf.data, buf.width, buf.height, &mut rng.0));
+    image.data = Some(if debug.magic_eye_enabled {
+        stereogram::generate(&buf.data, buf.width, buf.height, &mut rng.0)
+    } else {
+        // Grayscale depth visualisation: white = close, black = far
+        buf.data.iter()
+            .flat_map(|&d| { let v = (d * 255.0) as u8; [v, v, v, 255_u8] })
+            .collect()
+    });
 }

@@ -1,16 +1,25 @@
 mod games;
 mod menu;
 mod plugin;
+mod settings;
 mod stereogram;
 
 use bevy::prelude::*;
 use games::{pong::PongPlugin, tetris::TetrisPlugin};
 use menu::MenuPlugin;
 use plugin::MagicEyePlugin;
+use settings::SettingsPlugin;
 
 // Fallback resolution used on native (laptop) builds.
 const DEFAULT_WIDTH: u32 = 400;
 const DEFAULT_HEIGHT: u32 = 800;
+
+// Maximum resolution on web — caps desktop browsers to a phone-sized viewport.
+// Real phones fit under this, so they still use their full screen.
+#[cfg(target_arch = "wasm32")]
+const MAX_WEB_WIDTH: u32 = 430;
+#[cfg(target_arch = "wasm32")]
+const MAX_WEB_HEIGHT: u32 = 932;
 
 // ── App state ─────────────────────────────────────────────────────────────────
 
@@ -18,6 +27,7 @@ const DEFAULT_HEIGHT: u32 = 800;
 pub enum AppState {
     #[default]
     Menu,
+    Settings,
     Tetris,
     Pong,
 }
@@ -35,7 +45,7 @@ fn measure_screen() -> (u32, u32) {
             let h = win.inner_height().ok()
                 .and_then(|v| v.as_f64())
                 .unwrap_or(DEFAULT_HEIGHT as f64) as u32;
-            return (w, h);
+            return (w.min(MAX_WEB_WIDTH), h.min(MAX_WEB_HEIGHT));
         }
     }
     (DEFAULT_WIDTH, DEFAULT_HEIGHT)
@@ -58,7 +68,7 @@ fn main() {
         }))
         .add_plugins(MagicEyePlugin { width, height })
         .init_state::<AppState>()
-        .add_plugins((MenuPlugin, TetrisPlugin, PongPlugin))
+        .add_plugins((MenuPlugin, SettingsPlugin, TetrisPlugin, PongPlugin))
         .add_systems(Startup, setup)
         .add_systems(Update, global_escape)
         .run();

@@ -88,6 +88,7 @@ fn spawn_menu(mut commands: Commands) {
 
             spawn_button(parent, "Tetris", AppState::Tetris);
             spawn_button(parent, "Two-Player Pong", AppState::Pong);
+            spawn_button(parent, "Settings", AppState::Settings);
 
             parent.spawn((
                 Text::new("tap to select"),
