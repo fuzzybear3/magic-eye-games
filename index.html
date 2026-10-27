@@ -40,8 +40,14 @@
   <div id="loading">loading...</div>
   <script>
     const observer = new MutationObserver(() => {
-      if (document.querySelector('canvas')) {
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
         document.getElementById('loading').style.display = 'none';
+        // Give the canvas a tabindex so it can receive focus, then focus it.
+        // Without focus Firefox throttles touch events for secondary touch points.
+        canvas.setAttribute('tabindex', '0');
+        canvas.style.outline = 'none';
+        canvas.focus();
         observer.disconnect();
       }
     });
